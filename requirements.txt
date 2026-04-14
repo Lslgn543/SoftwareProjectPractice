@@ -16,3 +16,6 @@ opencv-python>=4.8.0    # 读取图片/视频，画图
 Pillow==10.2.0          # 必须锁定此版本，否则 facenet-pytorch 会报错
 numpy>=1.23.0           # 数组运算
 matplotlib>=3.7.0       # 用于在测试脚本中显示图片
+
+# ---------------- ONNX 模型推理 ----------------
+onnxruntime>=1.14.0     # 用于加载和运行 ONNX 模型

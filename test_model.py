@@ -17,6 +17,9 @@ def print_menu():
     print("3. MediaPipe Pose Landmark 检测（摄像头）")
     print("4. Halpe136 + MobileNet56 联合测试（摄像头）")
     print("5. MediaPipe Holistic Landmark 检测（摄像头）")
+    print("6. 面部表情识别（摄像头）")
+    print("7. MiniFASNetV2 活体检测（摄像头）")
+    print("8. MobileNetV2 人脸特征提取（摄像头）")
     print("0. 退出")
     print("=" * 50)
 
@@ -72,6 +75,33 @@ def run_holistic_landmarker():
     test_holistic_landmarker.test_with_camera()
 
 
+def run_facial_expression():
+    """运行面部表情识别（摄像头）"""
+    from tests import test_facial_expression
+    
+    print("启动面部表情识别")
+    print("按 'q' 键退出")
+    test_facial_expression.test_with_camera()
+
+
+def run_minifasnet():
+    """运行 MiniFASNetV2 活体检测（摄像头）"""
+    from tests import test_minifasnet
+    
+    print("启动 MiniFASNetV2 活体检测")
+    print("按 'q' 键退出")
+    test_minifasnet.test_with_camera()
+
+
+def run_mobilenetv2():
+    """运行 MobileNetV2 人脸特征提取（摄像头）"""
+    from tests import test_mobilenetv2
+    
+    print("启动 MobileNetV2 人脸特征提取")
+    print("按 'q' 键退出")
+    test_mobilenetv2.test_face_feature_extraction()
+
+
 def main():
     """主函数"""
     print("欢迎使用模型测试工具！")
@@ -91,6 +121,12 @@ def main():
             run_halpe136_mobilenet()
         elif choice == '5':
             run_holistic_landmarker()
+        elif choice == '6':
+            run_facial_expression()
+        elif choice == '7':
+            run_minifasnet()
+        elif choice == '8':
+            run_mobilenetv2()
         elif choice == '0':
             print("再见！")
             sys.exit(0)
