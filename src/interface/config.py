@@ -1,0 +1,16 @@
+import pyqtgraph as pg
+from PyQt5.QtGui import QFont
+
+
+WINDOW_WIDTH = 1280
+WINDOW_HEIGHT = 720
+LEFT_BAR_WIDTH = 400
+RIGHT_PANEL_WIDTH = 400
+TOP_NAV_HEIGHT = 100
+
+pg.setConfigOption('foreground', 'w')
+FONT_FAMILY = "Microsoft YaHei"
+FONT_SIZE_SMALL = 12
+FONT_SIZE_NORMAL = 14
+FONT_SIZE_LARGE = 16
+FONT_SIZE_XLARGE = 18
