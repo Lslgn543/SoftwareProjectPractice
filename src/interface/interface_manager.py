@@ -78,6 +78,7 @@ class InterfaceManager:
 
         self._preprocessing_callback: Optional[Callable] = None
         self._state_estimation_callback: Optional[Callable] = None
+        self._database_callback: Optional[Callable] = None
 
         self._current_session_id: Optional[str] = None
         self._current_mode: MonitorMode = MonitorMode.CLASS
@@ -164,7 +165,7 @@ class InterfaceManager:
     def refresh_camera_list(self) -> Dict[str, Any]:
         """
         指令：获取摄像头列表
-        路由：状态估计模块 → 预处理模块
+        路由：直接至预处理模块
         关联函数：refresh_camera_list -> on_query_cameras -> query_camera_list
 
         Returns:
@@ -172,8 +173,8 @@ class InterfaceManager:
         """
         print(f"[InterfaceManager] 请求获取摄像头列表")
 
-        if self._state_estimation_callback:
-            return self._state_estimation_callback("query_cameras", {})
+        if self._preprocessing_callback:
+            return self._preprocessing_callback("query_cameras", {})
 
         return {"success": True, "msg": "摄像头列表请求已发送"}
 
@@ -356,6 +357,18 @@ class InterfaceManager:
     def set_state_estimation_callback(self, callback: Callable[[str, Dict], Optional[Dict]]):
         """设置状态估计模块回调（用于指令下发）"""
         self._state_estimation_callback = callback
+
+    def register_database_callback(self, callback: Callable[[str, Dict], Optional[List[Dict]]]):
+        """注册数据库模块回调（用于查询指令下发）"""
+        self._database_callback = callback
+
+    def query_sessions(self, filter_params: dict) -> List[Dict[str, Any]]:
+        """UII-01: 查询会话列表，转发至数据库模块"""
+        if self._database_callback:
+            result = self._database_callback("query_sessions", filter_params)
+            if result is not None:
+                return result
+        return []
 
     @property
     def current_session_id(self) -> Optional[str]:

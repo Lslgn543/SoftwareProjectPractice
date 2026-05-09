@@ -8,7 +8,7 @@ from PyQt5.QtWidgets import (
 from .config import RIGHT_PANEL_WIDTH
 from .styles import COLORS, FONTS, SIZES, get_style, get_font, get_spacing
 from .interface_manager import interface_manager, FocusResultData
-from .mock_data_manager import mock_data_manager
+from .unified_data_manager import unified_data_manager
 
 
 class RightPanel(QFrame):
@@ -168,7 +168,7 @@ class RightPanel(QFrame):
             self.curve_line.setData(self.curve_data)
 
     def generate_simulated_data(self):
-        score_dict = mock_data_manager.generate_realtime_scores()
+        score_dict = unified_data_manager.generate_realtime_scores()
         if score_dict:
             self.score_updated.emit(score_dict)
 

@@ -92,3 +92,7 @@ class TopNavBar(QFrame):
         else:
             self.record_dot.setStyleSheet("color: #00E080; font-size: 14px;")
             self.record_label.setText("未录制")
+
+    def set_mode_buttons_enabled(self, enabled: bool):
+        for i in range(self.mode_group.buttons().__len__()):
+            self.mode_group.button(i).setEnabled(enabled)

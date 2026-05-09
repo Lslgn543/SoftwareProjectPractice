@@ -10,6 +10,7 @@ from .styles import COLORS, FONTS, SIZES, get_style, get_font, get_spacing
 
 class LeftSideBar(QFrame):
     camera_selected = pyqtSignal(int)
+    refresh_requested = pyqtSignal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -33,6 +34,7 @@ class LeftSideBar(QFrame):
         self.refresh_btn.setStyleSheet(f"color: {COLORS['text_hint']}; padding-right: {SIZES['spacing']['md']}px;")
         self.refresh_btn.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
         self.refresh_btn.setCursor(Qt.PointingHandCursor)
+        self.refresh_btn.mousePressEvent = lambda _: self.refresh_requested.emit()
 
         title_layout = QHBoxLayout()
         title_layout.addWidget(camera_title)
@@ -50,33 +52,6 @@ class LeftSideBar(QFrame):
         face_title.setStyleSheet(f"color: {COLORS['text_hint']}; padding-left: {SIZES['spacing']['md']}px;")
         self.face_list = QListWidget()
         self.face_list.setStyleSheet(get_style("list_widget"))
-        face_data = {"name": "人脸id", "no": "NO.009", "avatar": "👤", "warn": True}
-        item = QListWidgetItem()
-        item_widget = QWidget()
-        item_layout = QHBoxLayout(item_widget)
-        item_layout.setContentsMargins(get_spacing("lg"), get_spacing("sm"), get_spacing("lg"), get_spacing("sm"))
-        avatar_label = QLabel(face_data["avatar"])
-        avatar_label.setFont(QFont(*get_font("xxl")))
-        name_label = QLabel(face_data["name"])
-        name_label.setFont(QFont(*get_font("md", "medium")))
-        name_label.setStyleSheet(f"color: {COLORS['text']};")
-        no_label = QLabel(face_data["no"])
-        no_label.setFont(QFont(*get_font("sm")))
-        no_label.setStyleSheet(f"color: {COLORS['text_hint']};")
-        warn_label = QLabel("🚨")
-        arrow_label = QLabel(">")
-        arrow_label.setStyleSheet(f"color: {COLORS['text_hint']};")
-        item_layout.addWidget(avatar_label)
-        item_layout.addWidget(name_label)
-        item_layout.addStretch()
-        item_layout.addWidget(no_label)
-        if face_data["warn"]:
-            item_layout.addWidget(warn_label)
-        item_layout.addWidget(arrow_label)
-        self.face_list.addItem(item)
-        self.face_list.setItemWidget(item, item_widget)
-        self.face_list.setCurrentRow(0)
-
         layout.addWidget(face_title)
         layout.addWidget(self.face_list)
         layout.addStretch()
@@ -142,6 +117,29 @@ class LeftSideBar(QFrame):
     def _update_camera_item_style(self, row, selected):
         """更新摄像头项的样式"""
         pass
+
+    def update_faces(self, faces: list):
+        self.face_list.clear()
+        for face in faces:
+            item = QListWidgetItem()
+            item_widget = QWidget()
+            item_layout = QHBoxLayout(item_widget)
+            item_layout.setContentsMargins(get_spacing("lg"), get_spacing("sm"), get_spacing("lg"), get_spacing("sm"))
+
+            avatar_label = QLabel("👤")
+            avatar_label.setFont(QFont(*get_font("xxl")))
+            name_label = QLabel(f"人脸 ID:{face.get('face_id', '?')}")
+            name_label.setFont(QFont(*get_font("md", "medium")))
+            name_label.setStyleSheet(f"color: {COLORS['text']};")
+            arrow_label = QLabel(">")
+            arrow_label.setStyleSheet(f"color: {COLORS['text_hint']};")
+            item_layout.addWidget(avatar_label)
+            item_layout.addWidget(name_label)
+            item_layout.addStretch()
+            item_layout.addWidget(arrow_label)
+
+            self.face_list.addItem(item)
+            self.face_list.setItemWidget(item, item_widget)
 
     def on_camera_clicked(self, item):
         """摄像头列表项被点击"""

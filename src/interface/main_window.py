@@ -29,27 +29,11 @@ class MainWindow(QMainWindow):
         self.init_data()
 
     def _setup_interface_manager(self):
-        """配置接口管理器，设置预处理和状态估计模块的回调"""
-        def preprocessing_handler(command: str, params: dict):
-            print(f"[MainWindow] 预处理指令: {command}, params: {params}")
-            if command == "toggle_capture":
-                device_id = params.get("device_id", 0)
-                start = params.get("start", False)
-                print(f"[MainWindow] -> {'启动' if start else '停止'}摄像头 {device_id}")
-                self.left_sidebar.set_status(start, f"摄像头 {device_id}")
-                return {"success": True, "msg": "ok"}
-            elif command == "load_video":
-                print(f"[MainWindow] -> 加载视频: {params.get('file_path')}")
-                return {"success": True, "msg": "ok"}
-            return None
+        """配置接口管理器，连接预处理模块和状态估计模块"""
 
         def state_estimation_handler(command: str, params: dict):
             print(f"[MainWindow] 状态估计指令: {command}, params: {params}")
-            if command == "query_cameras":
-                print(f"[MainWindow] -> 查询摄像头列表")
-                cameras = unified_data_manager.request_camera_list()
-                return {"success": True, "cameras": cameras}
-            elif command == "start_session":
+            if command == "start_session":
                 print(f"[MainWindow] -> 创建会话: {params.get('session_id')}")
                 return {"success": True}
             elif command == "stop_session":
@@ -63,8 +47,17 @@ class MainWindow(QMainWindow):
                 return {"success": True}
             return None
 
-        interface_manager.set_preprocessing_callback(preprocessing_handler)
         interface_manager.set_state_estimation_callback(state_estimation_handler)
+
+        if unified_data_manager.initialize_real_backend():
+            print("[MainWindow] 已连接真实预处理后端")
+        else:
+            print("[MainWindow] 使用模拟数据模式（预处理模块不可用）")
+            interface_manager.set_preprocessing_callback(
+                lambda cmd, params: print(
+                    f"[MainWindow] 预处理指令(MOCK): {cmd}, params: {params}"
+                ) or {"success": True, "msg": "mock"}
+            )
 
         unified_data_manager.register_camera_list_callback(self.on_camera_list_received)
 
@@ -220,10 +213,14 @@ class MainWindow(QMainWindow):
         self.data_record_widget.session_selected.connect(self.on_session_clicked)
         self.session_detail_widget.back_pressed.connect(self.on_back_to_sessions)
         self.left_sidebar.camera_selected.connect(self.on_camera_selected)
+        self.left_sidebar.refresh_requested.connect(self.on_refresh_camera_list)
+        self.video_widget.frame_updated.connect(self.on_video_frame_updated)
 
     def init_data(self):
-        """通过统一数据管理器获取初始数据（根据data_source决定来源）"""
-        print(f"[MainWindow] 数据来源: {unified_data_manager.data_source.value}")
+        """通过统一数据管理器获取初始数据（各模块独立数据源）"""
+        print(f"[MainWindow] 预处理模块数据源: {unified_data_manager.preprocessing_source.value}")
+        print(f"[MainWindow] 状态估计模块数据源: {unified_data_manager.state_estimation_source.value}")
+        print(f"[MainWindow] 数据库模块数据源: {unified_data_manager.database_source.value}")
         print(f"[MainWindow] 初始化学生列表...")
         self.face_ids = unified_data_manager.generate_face_ids()
         print(f"[MainWindow] 获取到 {len(self.face_ids)} 个学生")
@@ -264,37 +261,9 @@ class MainWindow(QMainWindow):
         self.apply_filter(filter_params)
 
     def apply_filter(self, filter_params: dict):
-        """应用筛选条件，查询会话信息表"""
+        """应用筛选条件，查询会话信息表（UII-01）"""
         print(f"[MainWindow] 应用筛选条件: {filter_params}")
-
-        all_sessions = unified_data_manager.generate_all_sessions()
-
-        filtered_sessions = []
-        for session in all_sessions:
-            session_date = session.get("start_time", "").split(" ")[0]
-            session_mode = session.get("mode", "")
-            session_focus = session.get("avg_focus_score", 0)
-            session_abnormal = session.get("abnormal_event_count", 0)
-
-            if filter_params.get("start_date") and session_date < filter_params["start_date"]:
-                continue
-            if filter_params.get("end_date") and session_date > filter_params["end_date"]:
-                continue
-            if filter_params.get("mode") and session_mode != filter_params["mode"]:
-                continue
-
-            focus_min = filter_params.get("focus_min", 0)
-            focus_max = filter_params.get("focus_max", 100)
-            if session_focus < focus_min or session_focus > focus_max:
-                continue
-
-            abnormal_min = filter_params.get("abnormal_min", 0)
-            abnormal_max = filter_params.get("abnormal_max", 100)
-            if session_abnormal < abnormal_min or session_abnormal > abnormal_max:
-                continue
-
-            filtered_sessions.append(session)
-
+        filtered_sessions = unified_data_manager.query_sessions(filter_params)
         print(f"[MainWindow] 筛选结果: {len(filtered_sessions)} 条会话记录")
         self.data_record_widget.load_sessions(filter_params, filtered_sessions)
 
@@ -348,6 +317,8 @@ class MainWindow(QMainWindow):
         interface_manager.switch_mode(mode_str)
 
         self.video_widget.start_processing()
+        self.top_nav.set_mode_buttons_enabled(False)
+        self.top_nav_query.set_mode_buttons_enabled(False)
 
     def on_stop_analysis(self):
         print("[MainWindow] 停止分析")
@@ -360,7 +331,21 @@ class MainWindow(QMainWindow):
         if session_result and "session_id" in session_result:
             print(f"[MainWindow] 结束会话成功: {session_result['session_id']}")
 
+        self.top_nav.set_mode_buttons_enabled(True)
+        self.top_nav_query.set_mode_buttons_enabled(True)
+
     def on_camera_selected(self, device_id: int):
         """用户选择摄像头"""
         print(f"[MainWindow] 用户选择摄像头: {device_id}")
         self.current_device_id = device_id
+
+    def on_refresh_camera_list(self):
+        """刷新摄像头列表"""
+        print("[MainWindow] 手动刷新摄像头列表")
+        unified_data_manager.refresh_camera_list()
+
+    def on_video_frame_updated(self, frame_data):
+        """视频帧更新时，同步更新左侧人脸列表"""
+        faces = frame_data.get("faces", [])
+        if faces:
+            self.left_sidebar.update_faces(faces)

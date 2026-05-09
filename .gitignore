@@ -213,6 +213,7 @@ __marimo__/
 
 # ai提示词
 doc/
+CLAUDE.md
 
 # 模型
 weights/

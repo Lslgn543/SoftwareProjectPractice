@@ -27,8 +27,14 @@ class VideoWidget(QFrame):
         PRI-01: 接收预处理模块发送的视频帧数据
         用于画面渲染与人脸标注
         """
+        if not self.is_running:
+            return
         self.current_frame_data = data
         self.update_frame(data)
+        self.frame_updated.emit({
+            "faces": data.faces,
+            "timestamp": data.timestamp
+        })
 
     def update_frame(self, processed_data=None):
         """
@@ -118,10 +124,10 @@ class VideoWidget(QFrame):
 
     def stop_processing(self):
         self.is_running = False
-        self.video_label.setText("等待预处理模块接入...")
-        self.video_label.setStyleSheet("color: #666666; background-color: #0A0A1A; border-radius: 6px;")
         self.video_label.clear()
         self.current_frame_data = None
+        self.video_label.setText("等待预处理模块接入...")
+        self.video_label.setStyleSheet("color: #666666; background-color: #0A0A1A; border-radius: 6px;")
 
     def set_preprocessing_callback(self, callback):
         pass
