@@ -1,6 +1,6 @@
 """数据库表结构定义 + Schema 版本管理
 
-包含 3 张核心表的 @dataclass 结构，以及 SchemaManager 单例用于建表和版本管理。
+包含 4 张核心表的 @dataclass 结构，以及 SchemaManager 单例用于建表和版本管理。
 """
 
 import sqlite3
@@ -52,6 +52,16 @@ class AlertEventRecord:
     detail: str = ""
     frame_timestamp: Optional[float] = None
     id: Optional[int] = None
+
+
+# ============================================================
+# 表 4: 已注册人脸表 registered_faces
+# ============================================================
+@dataclass
+class RegisteredFace:
+    face_id: str
+    student_name: str
+    created_at: float
 
 
 # ============================================================
@@ -123,6 +133,17 @@ class SchemaManager:
             """
             CREATE INDEX IF NOT EXISTS idx_alert_events_session
                 ON alert_events(session_id)
+            """,
+            """
+            CREATE TABLE IF NOT EXISTS registered_faces (
+                face_id       TEXT PRIMARY KEY,
+                student_name  TEXT NOT NULL,
+                created_at    REAL NOT NULL
+            )
+            """,
+            """
+            CREATE INDEX IF NOT EXISTS idx_registered_faces_name
+                ON registered_faces(student_name)
             """,
         ]
     }

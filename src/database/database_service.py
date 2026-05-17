@@ -49,6 +49,28 @@ class DatabaseService:
         print(f"[DatabaseService] 未知命令: {command}")
         return None
 
+    # ────────────────── 人脸注册 ──────────────────
+
+    def register_face(self, face_id: str, student_name: str, created_at: float) -> bool:
+        """写入已注册人脸记录（预处理模块调用，storage_type='local' 时）
+
+        Args:
+            face_id: 人脸标识（local 模式为 student_name，temp 模式不入库）
+            student_name: 学生姓名
+            created_at: 注册时间戳
+        """
+        sql = ("INSERT OR REPLACE INTO registered_faces (face_id, student_name, created_at) "
+               "VALUES (?, ?, ?)")
+        try:
+            conn = self._conn_mgr.get_connection()
+            conn.execute(sql, (face_id, student_name, created_at))
+            conn.commit()
+            print(f"[DatabaseService] 已注册人脸: {face_id} ({student_name})")
+            return True
+        except sqlite3.Error as e:
+            print(f"[DatabaseService] 注册人脸失败: {e}")
+            return False
+
     # ────────────────── 会话管理 ──────────────────
 
     def create_session(self, session: Dict[str, Any]) -> bool:
