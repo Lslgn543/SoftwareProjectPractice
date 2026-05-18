@@ -19,6 +19,8 @@ from .styles.effects import create_card_shadow
 
 class SessionDetailWidget(QFrame):
     back_pressed = pyqtSignal()
+    alert_info_clicked = pyqtSignal(dict)
+    export_report_clicked = pyqtSignal(dict, list)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -52,6 +54,52 @@ class SessionDetailWidget(QFrame):
         header_layout.addWidget(self.back_btn)
         header_layout.addWidget(self.title_label)
         header_layout.addStretch()
+
+        self.btn_alert_info = QPushButton("查看告警")
+        self.btn_alert_info.setFont(QFont(*get_font("sm", "bold", "ui")))
+        self.btn_alert_info.setFixedSize(90, SIZES["button"]["height_lg"])
+        self.btn_alert_info.setCursor(Qt.PointingHandCursor)
+        self.btn_alert_info.setStyleSheet(f"""
+            QPushButton {{
+                color: {COLORS['text_secondary']};
+                background-color: #3A3A60;
+                border: 1px solid {COLORS['border_light']};
+                border-radius: {SIZES['radius']['base']}px;
+                font-weight: {FONTS['weight']['bold']};
+            }}
+            QPushButton:hover {{
+                background-color: #46467A;
+                border-color: #5A5A90;
+            }}
+            QPushButton:pressed {{
+                background-color: #2E2E50;
+            }}
+        """)
+        self.btn_alert_info.clicked.connect(self._on_alert_info_clicked)
+
+        self.btn_export_report = QPushButton("导出报告")
+        self.btn_export_report.setFont(QFont(*get_font("sm", "bold", "ui")))
+        self.btn_export_report.setFixedSize(90, SIZES["button"]["height_lg"])
+        self.btn_export_report.setCursor(Qt.PointingHandCursor)
+        self.btn_export_report.setStyleSheet(f"""
+            QPushButton {{
+                color: #FFFFFF;
+                background-color: #00C853;
+                border: none;
+                border-radius: {SIZES['radius']['base']}px;
+                font-weight: {FONTS['weight']['bold']};
+            }}
+            QPushButton:hover {{
+                background-color: #00E676;
+            }}
+            QPushButton:pressed {{
+                background-color: #00A844;
+            }}
+        """)
+        self.btn_export_report.clicked.connect(self._on_export_report_clicked)
+
+        header_layout.addWidget(self.btn_alert_info)
+        header_layout.addWidget(self.btn_export_report)
         layout.addLayout(header_layout)
 
         # ---- 会话信息标签 ----
@@ -66,10 +114,11 @@ class SessionDetailWidget(QFrame):
 
         # ---- 评分表格 ----
         self.record_table = QTableWidget()
-        self.record_table.setColumnCount(9)
+        self.record_table.setColumnCount(10)
         self.record_table.setHorizontalHeaderLabels([
             "时间戳", "头部姿态", "行为动作", "表情",
-            "证据理论", "人数项", "最终专注度", "强制置0", "会话ID",
+            "证据理论", "人数项", "最终专注度", "强制置0",
+            "是否达到阈值", "会话ID",
         ])
         self.record_table.setFont(QFont(*get_font("sm", "normal", "data")))
         self.record_table.setStyleSheet(get_style("table_enhanced"))
@@ -133,6 +182,7 @@ class SessionDetailWidget(QFrame):
         self.current_records = records
 
         session_id = session.get("session_id", "")
+        face_id = session.get("face_id", "")
         start_time = session.get("start_time", "")
         end_time = session.get("end_time", "")
         mode = {"class": "网课模式", "exam": "考试模式"}.get(
@@ -143,6 +193,7 @@ class SessionDetailWidget(QFrame):
 
         self.title_label.setText(f"会话详情 - {session_id}")
         self.session_info_label.setText(
+            f"人脸ID: {face_id}  |  "
             f"会话时间: {start_time} ~ {end_time}  |  模式: {mode}  |  "
             f"平均专注度: {avg_focus:.1f}  |  异常事件: {abnormal_count}  |  记录数: {len(records)}"
         )
@@ -158,6 +209,7 @@ class SessionDetailWidget(QFrame):
                 QTableWidgetItem(f"{record.get('people_score', 0):.1f}"),
                 QTableWidgetItem(f"{record.get('final_focus_score', 0):.1f}"),
                 QTableWidgetItem("是" if record.get("is_force_zero", False) else "否"),
+                QTableWidgetItem("是" if record.get("is_over_threshold", False) else "否"),
                 QTableWidgetItem(record.get("session_id", "")),
             ]
 
@@ -174,6 +226,8 @@ class SessionDetailWidget(QFrame):
                     else:
                         item.setForeground(QColor(COLORS["focus_medium"]))
                 if col == 7 and record.get("is_force_zero", False):
+                    item.setForeground(QColor(COLORS["danger"]))
+                if col == 8 and record.get("is_over_threshold", False):
                     item.setForeground(QColor(COLORS["danger"]))
 
                 self.record_table.setItem(row, col, item)
@@ -250,3 +304,11 @@ class SessionDetailWidget(QFrame):
             return records
         step = n // max_samples
         return records[::step][:max_samples]
+
+    def _on_alert_info_clicked(self):
+        if self.current_session:
+            self.alert_info_clicked.emit(self.current_session)
+
+    def _on_export_report_clicked(self):
+        if self.current_session:
+            self.export_report_clicked.emit(self.current_session, self.current_records)

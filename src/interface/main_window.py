@@ -1,5 +1,5 @@
 from PyQt5.QtCore import Qt
-from PyQt5.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QStackedLayout, QSplitter
+from PyQt5.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QStackedLayout, QSplitter, QMenu, QFileDialog, QMessageBox
 
 from .config import WINDOW_WIDTH, WINDOW_HEIGHT, TOP_NAV_HEIGHT, LEFT_BAR_WIDTH, RIGHT_PANEL_WIDTH
 from .styles import get_style, get_spacing
@@ -13,6 +13,8 @@ from .session_detail_widget import SessionDetailWidget
 from .interface_manager import interface_manager
 from .unified_data_manager import unified_data_manager, CameraInfo
 from .face_registration_dialog import FaceRegistrationDialog
+from .alert_info_dialog import AlertInfoDialog
+from .export_report_util import export_to_excel, export_to_pdf
 
 
 class MainWindow(QMainWindow):
@@ -168,9 +170,14 @@ class MainWindow(QMainWindow):
         self.filter_sidebar.filter_applied.connect(self.on_filter_applied)
         self.filter_sidebar.chart_options_changed.connect(self.on_chart_options_changed)
         self.data_record_widget.session_selected.connect(self.on_session_clicked)
+        self.data_record_widget.delete_requested.connect(self.on_delete_sessions)
         self.session_detail_widget.back_pressed.connect(self.on_back_to_sessions)
+        self.session_detail_widget.alert_info_clicked.connect(self.on_alert_info_clicked)
+        self.session_detail_widget.export_report_clicked.connect(self.on_export_report_clicked)
         self.left_sidebar.camera_selected.connect(self.on_camera_selected)
         self.left_sidebar.refresh_requested.connect(self.on_refresh_camera_list)
+        self.left_sidebar.face_selected.connect(self.on_face_selected)
+        self.left_sidebar.show_bbox_toggled.connect(self.video_widget.set_show_face_boxes)
         self.video_widget.frame_updated.connect(self.on_video_frame_updated)
         self.top_nav.register_face_clicked.connect(self.on_register_face_clicked)
         self.top_nav_query.register_face_clicked.connect(self.on_register_face_clicked)
@@ -180,12 +187,17 @@ class MainWindow(QMainWindow):
         print(f"[MainWindow] 预处理模块数据源: {unified_data_manager.preprocessing_source.value}")
         print(f"[MainWindow] 状态估计模块数据源: {unified_data_manager.state_estimation_source.value}")
         print(f"[MainWindow] 数据库模块数据源: {unified_data_manager.database_source.value}")
-        print(f"[MainWindow] 初始化学生列表...")
-        self.face_ids = unified_data_manager.generate_face_ids()
-        print(f"[MainWindow] 获取到 {len(self.face_ids)} 个学生")
-
         print(f"[MainWindow] 请求摄像头列表...")
         unified_data_manager.request_camera_list()
+        self.refresh_face_list()
+
+    def refresh_face_list(self):
+        """从预处理注册表（降级至数据库）获取已注册人脸列表"""
+        faces = unified_data_manager.generate_face_ids_with_details()
+        print(f"[MainWindow] 刷新人脸列表: {len(faces)} 个已注册人脸")
+        self.left_sidebar.update_faces(faces)
+        face_ids = unified_data_manager.generate_face_ids()
+        self.filter_sidebar.refresh_face_list(face_ids)
 
     def on_camera_list_received(self, cameras):
         """摄像头列表回调"""
@@ -207,6 +219,7 @@ class MainWindow(QMainWindow):
         self.main_stacked_layout.setCurrentIndex(0)
         self.top_nav.set_mode(mode)
         self.top_nav_query.set_mode(mode)
+        self.refresh_face_list()
 
     def switch_to_query_mode(self):
         self.main_stacked_layout.setCurrentIndex(1)
@@ -262,9 +275,28 @@ class MainWindow(QMainWindow):
         if self.right_stacked_layout.currentIndex() == 1:
             self.session_detail_widget.update_chart(chart_options)
 
+    def on_face_selected(self, face_id: str):
+        """用户在人脸列表中选择人脸"""
+        self.current_face_id = face_id
+        print(f"[MainWindow] 当前选中人脸: {face_id}")
+
     def on_start_analysis(self):
         print("[MainWindow] 开始分析")
-        result = interface_manager.toggle_capture(device_id=self.current_device_id, start=True)
+
+        if not self.left_sidebar.has_faces():
+            self._msg("warning", "提示", "请先完成人脸注册")
+            return
+
+        face_id = self.left_sidebar.get_selected_face_id()
+        if face_id:
+            self.current_face_id = face_id
+        monitored_faces = [face_id] if face_id else []
+
+        print(f"[MainWindow] 监控人脸: {monitored_faces}")
+        result = interface_manager.toggle_capture(
+            device_id=self.current_device_id, start=True,
+            monitored_faces=monitored_faces,
+        )
         print(f"[MainWindow] 摄像头控制结果: {result}")
 
         session_result = interface_manager.toggle_analysis(start=True)
@@ -306,19 +338,16 @@ class MainWindow(QMainWindow):
         unified_data_manager.refresh_camera_list()
 
     def on_video_frame_updated(self, frame_data):
-        """视频帧更新时，同步更新左侧人脸列表"""
+        """视频帧更新时，传递 bbox 数据给 video_widget 用于勾选框绘制"""
         faces = frame_data.get("faces", [])
         if faces:
-            self.left_sidebar.update_faces(faces)
+            self.video_widget.set_face_boxes(faces)
 
     def on_register_face_clicked(self):
         """注册人脸按钮点击"""
         if interface_manager.is_capture_running:
-            from PyQt5.QtWidgets import QMessageBox
-            QMessageBox.warning(
-                self, "提示",
-                '正在分析中，请先点击"停止分析"后再注册人脸。'
-            )
+            self._msg("warning", "提示",
+                      '正在分析中，请先点击"停止分析"后再注册人脸。')
             return
 
         print("[MainWindow] 打开人脸注册弹窗")
@@ -326,6 +355,7 @@ class MainWindow(QMainWindow):
             device_id=self.current_device_id, parent=self
         )
         dialog.registration_completed.connect(self.on_face_registration_completed)
+        dialog.face_registration_success.connect(self.refresh_face_list)
         dialog.show()
 
     def on_face_registration_completed(self, data: dict):
@@ -341,3 +371,175 @@ class MainWindow(QMainWindow):
 
         result = interface_manager.register_face(name, frames, storage_type)
         print(f"[MainWindow] register_face 结果: {result}")
+
+    def on_alert_info_clicked(self, session_data: dict):
+        """查看告警信息"""
+        session_id = session_data.get("session_id", "")
+        if not session_id:
+            self._msg("warning", "提示", "无有效的会话ID")
+            return
+
+        print(f"[MainWindow] 查看告警信息: session_id={session_id}")
+        alerts = unified_data_manager.generate_alarm_events(session_id)
+        print(f"[MainWindow] 获取到 {len(alerts)} 条告警记录")
+
+        dialog = AlertInfoDialog(session_data, alerts, parent=self)
+        dialog.show()
+
+    def on_export_report_clicked(self, session_data: dict, records: list):
+        """导出报告"""
+        session_id = session_data.get("session_id", "")
+        if not session_id or not records:
+            self._msg("warning", "提示", "无有效数据可供导出")
+            return
+
+        # 提前生成告警数据，确保弹窗和导出一致
+        alerts = unified_data_manager.generate_alarm_events(session_id)
+
+        menu = QMenu(self)
+        menu.setStyleSheet("""
+            QMenu {
+                background-color: #262650;
+                color: #FFFFFF;
+                border: 1px solid #3A3A60;
+                border-radius: 8px;
+                padding: 4px;
+            }
+            QMenu::item {
+                padding: 8px 32px;
+                border-radius: 4px;
+            }
+            QMenu::item:selected {
+                background-color: #7A5CFF;
+            }
+        """)
+
+        excel_action = menu.addAction("导出 Excel (.xlsx)")
+        pdf_action = menu.addAction("导出 PDF (.pdf)")
+
+        chosen = menu.exec_(self.cursor().pos())
+        if not chosen:
+            return
+
+        if chosen == excel_action:
+            filepath, _ = QFileDialog.getSaveFileName(
+                self, "导出 Excel 报告",
+                f"{session_id}_report.xlsx",
+                "Excel 文件 (*.xlsx)",
+            )
+            if filepath:
+                try:
+                    export_to_excel(session_data, records, alerts, filepath)
+                    self._msg("info", "成功", f"报告已导出至:\n{filepath}")
+                except Exception as e:
+                    self._msg("critical", "错误", f"导出失败: {str(e)}")
+
+        elif chosen == pdf_action:
+            filepath, _ = QFileDialog.getSaveFileName(
+                self, "导出 PDF 报告",
+                f"{session_id}_report.pdf",
+                "PDF 文件 (*.pdf)",
+            )
+            if filepath:
+                try:
+                    export_to_pdf(session_data, records, alerts, filepath)
+                    self._msg("info", "成功", f"报告已导出至:\n{filepath}")
+                except Exception as e:
+                    self._msg("critical", "错误", f"导出失败: {str(e)}")
+
+    def on_delete_sessions(self, session_ids: list):
+        """批量删除会话及关联数据"""
+        if not session_ids:
+            return
+
+        count = len(session_ids)
+        reply = self._question(
+            "确认删除",
+            f"确定删除选中的 {count} 条会话及其关联数据吗？此操作不可撤销。",
+        )
+        if not reply:
+            return
+
+        result = unified_data_manager.delete_sessions(session_ids)
+        deleted = result.get("deleted_count", 0)
+        total = result.get("total", 0)
+
+        if deleted > 0:
+            self._msg("info", "删除成功", f"已删除 {deleted} 条会话")
+        else:
+            source_name = "数据库" if unified_data_manager.database_source.value == "real" else "模拟数据"
+            self._msg(
+                "warning", "未能删除",
+                f"未能删除选中的 {total} 条会话（{deleted}/{total}）。\n"
+                f"数据源：{source_name}\n"
+                f"可能原因：会话数据尚未持久化或已被清理。"
+            )
+
+        # 退出选择模式并刷新列表
+        self.data_record_widget.exit_selection_mode()
+        self.apply_filter(self.filter_sidebar.get_current_filter())
+
+    @staticmethod
+    def _msg(level: str, title: str, text: str):
+        """显示不受深色主题影响的提示框"""
+        box = QMessageBox()
+        box.setWindowTitle(title)
+        box.setText(text)
+        box.setStyleSheet("""
+            QMessageBox {
+                background-color: #FFFFFF;
+                color: #000000;
+            }
+            QLabel {
+                color: #000000;
+            }
+            QPushButton {
+                color: #000000;
+                background-color: #E0E0E0;
+                border: 1px solid #AAAAAA;
+                border-radius: 4px;
+                padding: 6px 16px;
+                min-width: 80px;
+            }
+            QPushButton:hover {
+                background-color: #D0D0D0;
+            }
+        """)
+        if level == "info":
+            box.setIcon(QMessageBox.Information)
+        elif level == "warning":
+            box.setIcon(QMessageBox.Warning)
+        elif level == "critical":
+            box.setIcon(QMessageBox.Critical)
+        box.exec_()
+
+    @staticmethod
+    def _question(title: str, text: str) -> bool:
+        """显示不受深色主题影响的确认框，返回 True 表示用户点击 Yes"""
+        box = QMessageBox()
+        box.setWindowTitle(title)
+        box.setText(text)
+        box.setIcon(QMessageBox.Question)
+        box.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        box.setDefaultButton(QMessageBox.No)
+        box.setStyleSheet("""
+            QMessageBox {
+                background-color: #FFFFFF;
+                color: #000000;
+            }
+            QLabel {
+                color: #000000;
+            }
+            QPushButton {
+                color: #000000;
+                background-color: #E0E0E0;
+                border: 1px solid #AAAAAA;
+                border-radius: 4px;
+                padding: 6px 16px;
+                min-width: 80px;
+            }
+            QPushButton:hover {
+                background-color: #D0D0D0;
+            }
+        """)
+        return box.exec_() == QMessageBox.Yes

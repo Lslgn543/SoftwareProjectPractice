@@ -49,6 +49,7 @@ class MockFocusRecord:
     people_score: float
     final_focus_score: float
     is_force_zero: bool
+    is_over_threshold: bool
     date: str
     time: str
 
@@ -184,6 +185,7 @@ class MockDataManager:
             "people_score": scores.get("people", 90),
             "final_focus_score": scores.get("final_focus", 85.0),
             "is_force_zero": False,
+            "is_over_threshold": False,
             "warn_info": self._generate_warn_msg(scores.get("final_focus", 85.0))
         }
 
@@ -305,6 +307,7 @@ class MockDataManager:
                         people_score=scores.get("people", 90),
                         final_focus_score=scores.get("final_focus", 85.0),
                         is_force_zero=False,
+                        is_over_threshold=False,
                         date=session.start_time.split(" ")[0],
                         time=session.start_time.split(" ")[1]
                     )
@@ -326,6 +329,7 @@ class MockDataManager:
                 "people_score": record.people_score,
                 "final_focus_score": record.final_focus_score,
                 "is_force_zero": record.is_force_zero,
+                "is_over_threshold": record.is_over_threshold,
                 "focus_score": record.final_focus_score,
             }
             for record in self._simulated_records.get(face_id, [])
@@ -402,6 +406,7 @@ class MockDataManager:
                 "people_score": scores.get("people", 90),
                 "final_focus_score": scores.get("final_focus", 85.0),
                 "is_force_zero": False,
+                "is_over_threshold": False,
                 "focus_score": scores.get("final_focus", 85.0),
             })
         records.sort(key=lambda x: x["timestamp"])
@@ -449,6 +454,39 @@ class MockDataManager:
 
         events.sort(key=lambda x: x["timestamp"])
         return events
+
+    def delete_sessions(self, session_ids: List[str]) -> Dict[str, Any]:
+        """从内存中删除指定会话及关联数据
+
+        Args:
+            session_ids: 要删除的会话 ID 列表
+
+        Returns:
+            {"deleted_count": N, "total": M}
+        """
+        if not session_ids:
+            return {"deleted_count": 0, "total": 0}
+
+        total = len(session_ids)
+        session_set = set(session_ids)
+
+        # Mock 数据每次生成都是新的随机 ID，不存在持久存储
+        # 清理内存中的缓存（如果恰好命中），其余视为已删除
+        deleted_sessions = sum(1 for sid in session_ids if sid in self._simulated_sessions)
+        self._simulated_sessions = {
+            k: v for k, v in self._simulated_sessions.items()
+            if k not in session_set
+        }
+
+        for face_id in list(self._simulated_records.keys()):
+            self._simulated_records[face_id] = [
+                r for r in self._simulated_records.get(face_id, [])
+                if r.session_id not in session_set
+            ]
+
+        # Mock 模式下数据为临时生成，无持久存储，视为全部删除成功
+        print(f"[MockDataManager] 删除请求 {total} 条（缓存命中 {deleted_sessions} 条，其余视为已删除）")
+        return {"deleted_count": total, "total": total}
 
     def clear_cache(self):
         """清除已生成的历史记录缓存"""
