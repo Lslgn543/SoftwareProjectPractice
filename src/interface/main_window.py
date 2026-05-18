@@ -299,7 +299,7 @@ class MainWindow(QMainWindow):
         )
         print(f"[MainWindow] 摄像头控制结果: {result}")
 
-        session_result = interface_manager.toggle_analysis(start=True)
+        session_result = interface_manager.toggle_analysis(start=True, face_id=face_id)
         if session_result and "session_id" in session_result:
             print(f"[MainWindow] 创建会话成功: {session_result['session_id']}")
 
