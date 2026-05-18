@@ -44,6 +44,7 @@ class FocusResultData:
     people_score: float
     final_focus_score: float
     is_force_zero: bool
+    is_over_threshold: bool = False
     warn_msg: Optional[Dict[str, str]] = None
 
 
@@ -192,6 +193,7 @@ class UnifiedDataManager:
                 people_score=data.people_score,
                 final_focus_score=data.final_focus_score,
                 is_force_zero=data.is_force_zero,
+                is_over_threshold=data.is_over_threshold,
                 warn_msg=data.warn_msg
             )
             self._focus_result_callback(focus_data)
@@ -261,6 +263,7 @@ class UnifiedDataManager:
                     people_score=data.get("people_score", 0.0),
                     final_focus_score=data.get("final_focus_score", 0.0),
                     is_force_zero=data.get("is_force_zero", False),
+                    is_over_threshold=data.get("is_over_threshold", False),
                     warn_msg=data.get("warn_info")
                 )
                 self._focus_result_callback(result)
@@ -277,6 +280,7 @@ class UnifiedDataManager:
                     people_score=mock.get("people_score", 0.0),
                     final_focus_score=mock.get("final_focus_score", 0.0),
                     is_force_zero=mock.get("is_force_zero", False),
+                    is_over_threshold=mock.get("is_over_threshold", False),
                     warn_msg=mock.get("warn_info")
                 )
                 self._focus_result_callback(result)

@@ -36,6 +36,7 @@ class FocusRecord:
     people_score: float = 0.0
     final_focus_score: float = 0.0
     is_force_zero: bool = False
+    is_over_threshold: bool = False
     id: Optional[int] = None
     date: str = ""
     time: str = ""
@@ -79,7 +80,7 @@ class SchemaManager:
     """数据库 Schema 版本管理器（单例）"""
 
     _instance: Optional["SchemaManager"] = None
-    CURRENT_VERSION: int = 3
+    CURRENT_VERSION: int = 4
 
     _DDL = {
         1: [
@@ -193,6 +194,9 @@ class SchemaManager:
             "CREATE INDEX IF NOT EXISTS idx_sessions_start_time ON sessions(start_time)",
             "CREATE INDEX IF NOT EXISTS idx_sessions_mode ON sessions(mode)",
             "CREATE INDEX IF NOT EXISTS idx_sessions_face_id ON sessions(face_id)",
+        ],
+        4: [
+            "ALTER TABLE focus_records ADD COLUMN is_over_threshold INTEGER DEFAULT 0",
         ]
     }
 

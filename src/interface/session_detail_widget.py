@@ -114,10 +114,11 @@ class SessionDetailWidget(QFrame):
 
         # ---- 评分表格 ----
         self.record_table = QTableWidget()
-        self.record_table.setColumnCount(9)
+        self.record_table.setColumnCount(10)
         self.record_table.setHorizontalHeaderLabels([
             "时间戳", "头部姿态", "行为动作", "表情",
-            "证据理论", "人数项", "最终专注度", "强制置0", "会话ID",
+            "证据理论", "人数项", "最终专注度", "强制置0",
+            "是否达到阈值", "会话ID",
         ])
         self.record_table.setFont(QFont(*get_font("sm", "normal", "data")))
         self.record_table.setStyleSheet(get_style("table_enhanced"))
@@ -208,6 +209,7 @@ class SessionDetailWidget(QFrame):
                 QTableWidgetItem(f"{record.get('people_score', 0):.1f}"),
                 QTableWidgetItem(f"{record.get('final_focus_score', 0):.1f}"),
                 QTableWidgetItem("是" if record.get("is_force_zero", False) else "否"),
+                QTableWidgetItem("是" if record.get("is_over_threshold", False) else "否"),
                 QTableWidgetItem(record.get("session_id", "")),
             ]
 
@@ -224,6 +226,8 @@ class SessionDetailWidget(QFrame):
                     else:
                         item.setForeground(QColor(COLORS["focus_medium"]))
                 if col == 7 and record.get("is_force_zero", False):
+                    item.setForeground(QColor(COLORS["danger"]))
+                if col == 8 and record.get("is_over_threshold", False):
                     item.setForeground(QColor(COLORS["danger"]))
 
                 self.record_table.setItem(row, col, item)

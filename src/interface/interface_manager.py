@@ -58,6 +58,7 @@ class FocusResultData:
     people_score: float
     final_focus_score: float
     is_force_zero: bool
+    is_over_threshold: bool = False
     warn_msg: Optional[Dict[str, str]] = None
 
 
@@ -189,6 +190,7 @@ class InterfaceManager:
                 people_score=data.get("people_score", 0.0),
                 final_focus_score=data.get("final_focus_score", 0.0),
                 is_force_zero=data.get("is_force_zero", False),
+                is_over_threshold=data.get("is_over_threshold", False),
                 warn_msg=data.get("warn_info")
             )
             self._focus_result_callback(result)

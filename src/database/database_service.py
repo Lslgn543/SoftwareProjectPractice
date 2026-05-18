@@ -273,12 +273,13 @@ class DatabaseService:
             INSERT INTO focus_records (
                 session_id, timestamp, date, time,
                 head_pose_score, behavior_score, expression_score,
-                evidence_score, people_score, final_focus_score, is_force_zero
+                evidence_score, people_score, final_focus_score, is_force_zero,
+                is_over_threshold
             ) VALUES (
                 ?, ?,
                 strftime('%Y-%m-%d', ?, 'unixepoch'),
                 strftime('%H:%M:%S', ?, 'unixepoch'),
-                ?, ?, ?, ?, ?, ?, ?
+                ?, ?, ?, ?, ?, ?, ?, ?
             )
         """
         alert_sql = """
@@ -300,6 +301,7 @@ class DatabaseService:
                 r.get("people_score", 0.0),
                 r.get("final_focus_score", 0.0),
                 1 if r.get("is_force_zero", False) else 0,
+                1 if r.get("is_over_threshold", False) else 0,
             ))
             warn = r.get("warn_info")
             if warn:

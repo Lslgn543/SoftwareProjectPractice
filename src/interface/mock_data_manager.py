@@ -49,6 +49,7 @@ class MockFocusRecord:
     people_score: float
     final_focus_score: float
     is_force_zero: bool
+    is_over_threshold: bool
     date: str
     time: str
 
@@ -184,6 +185,7 @@ class MockDataManager:
             "people_score": scores.get("people", 90),
             "final_focus_score": scores.get("final_focus", 85.0),
             "is_force_zero": False,
+            "is_over_threshold": False,
             "warn_info": self._generate_warn_msg(scores.get("final_focus", 85.0))
         }
 
@@ -305,6 +307,7 @@ class MockDataManager:
                         people_score=scores.get("people", 90),
                         final_focus_score=scores.get("final_focus", 85.0),
                         is_force_zero=False,
+                        is_over_threshold=False,
                         date=session.start_time.split(" ")[0],
                         time=session.start_time.split(" ")[1]
                     )
@@ -326,6 +329,7 @@ class MockDataManager:
                 "people_score": record.people_score,
                 "final_focus_score": record.final_focus_score,
                 "is_force_zero": record.is_force_zero,
+                "is_over_threshold": record.is_over_threshold,
                 "focus_score": record.final_focus_score,
             }
             for record in self._simulated_records.get(face_id, [])
@@ -402,6 +406,7 @@ class MockDataManager:
                 "people_score": scores.get("people", 90),
                 "final_focus_score": scores.get("final_focus", 85.0),
                 "is_force_zero": False,
+                "is_over_threshold": False,
                 "focus_score": scores.get("final_focus", 85.0),
             })
         records.sort(key=lambda x: x["timestamp"])
