@@ -22,8 +22,8 @@ from .unified_data_manager import unified_data_manager
 # 4 个采集姿势
 POSE_GUIDES = [
     "请正对摄像头，保持面部居中",
-    "请将头部转向左侧",
-    "请将头部转向右侧",
+    "请将头部转向左侧45°",
+    "请将头部转向右侧45°",
     "请略微低头，俯视摄像头",
 ]
 
