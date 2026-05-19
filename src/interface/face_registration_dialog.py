@@ -86,7 +86,7 @@ class FaceRegistrationDialog(QDialog):
         )
 
         title_label = QLabel("人脸注册")
-        title_label.setFont(QFont(*get_font("lg", "bold", "display")))
+        title_label.setFont(QFont(*get_font("lg", "bold", "ui")))
         title_label.setStyleSheet(
             f"color: {COLORS['text']}; background: transparent;"
         )
@@ -146,13 +146,13 @@ class FaceRegistrationDialog(QDialog):
 
         icon_label = QLabel("📷")
         icon_label.setAlignment(Qt.AlignCenter)
-        icon_label.setFont(QFont(*get_font("hero", "normal", "display")))
+        icon_label.setFont(QFont(*get_font("hero", "normal", "ui")))
         icon_label.setStyleSheet("background: transparent;")
         layout.addWidget(icon_label)
 
         notice_title = QLabel("需要打开摄像头")
         notice_title.setAlignment(Qt.AlignCenter)
-        notice_title.setFont(QFont(*get_font("xl", "bold", "display")))
+        notice_title.setFont(QFont(*get_font("xl", "bold", "ui")))
         notice_title.setStyleSheet(
             f"color: {COLORS['text']}; background: transparent;"
         )
@@ -230,7 +230,7 @@ class FaceRegistrationDialog(QDialog):
         # 姿势引导文字
         self.pose_guide_label = QLabel(POSE_GUIDES[0])
         self.pose_guide_label.setAlignment(Qt.AlignCenter)
-        self.pose_guide_label.setFont(QFont(*get_font("xl", "bold", "display")))
+        self.pose_guide_label.setFont(QFont(*get_font("xl", "bold", "ui")))
         self.pose_guide_label.setStyleSheet(get_style("pose_guide_label"))
         layout.addWidget(self.pose_guide_label)
 
@@ -299,7 +299,7 @@ class FaceRegistrationDialog(QDialog):
 
         check_label = QLabel("✓")
         check_label.setAlignment(Qt.AlignCenter)
-        check_label.setFont(QFont(*get_font("hero", "extrabold", "display")))
+        check_label.setFont(QFont(*get_font("hero", "extrabold", "ui")))
         check_label.setStyleSheet(
             f"color: {COLORS['success']}; background: transparent;"
         )
@@ -307,7 +307,7 @@ class FaceRegistrationDialog(QDialog):
 
         success_title = QLabel("采集成功")
         success_title.setAlignment(Qt.AlignCenter)
-        success_title.setFont(QFont(*get_font("xl", "bold", "display")))
+        success_title.setFont(QFont(*get_font("xl", "bold", "ui")))
         success_title.setStyleSheet(
             f"color: {COLORS['text']}; background: transparent;"
         )
@@ -428,7 +428,7 @@ class FaceRegistrationDialog(QDialog):
 
         self.processing_spinner = QLabel("⏳")
         self.processing_spinner.setAlignment(Qt.AlignCenter)
-        self.processing_spinner.setFont(QFont(*get_font("hero", "normal", "display")))
+        self.processing_spinner.setFont(QFont(*get_font("hero", "normal", "ui")))
         self.processing_spinner.setStyleSheet(
             f"color: {COLORS['primary']}; background: transparent;"
         )
@@ -436,7 +436,7 @@ class FaceRegistrationDialog(QDialog):
 
         processing_title = QLabel("正在处理人脸数据")
         processing_title.setAlignment(Qt.AlignCenter)
-        processing_title.setFont(QFont(*get_font("xl", "bold", "display")))
+        processing_title.setFont(QFont(*get_font("xl", "bold", "ui")))
         processing_title.setStyleSheet(
             f"color: {COLORS['text']}; background: transparent;"
         )

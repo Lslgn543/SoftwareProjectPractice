@@ -29,7 +29,7 @@ class FilterSidebar(QFrame):
         layout.setSpacing(get_spacing("group"))
 
         self.title_label = QLabel("筛选条件")
-        self.title_label.setFont(QFont(*get_font("xl", "bold", "display")))
+        self.title_label.setFont(QFont(*get_font("xl", "bold", "ui")))
         self.title_label.setStyleSheet(get_style("label_title"))
         layout.addWidget(self.title_label)
 

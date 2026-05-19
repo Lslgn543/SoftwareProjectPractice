@@ -48,7 +48,7 @@ class SessionDetailWidget(QFrame):
         self.back_btn.clicked.connect(self.back_pressed.emit)
 
         self.title_label = QLabel("会话详情")
-        self.title_label.setFont(QFont(*get_font("xl", "bold", "display")))
+        self.title_label.setFont(QFont(*get_font("xl", "bold", "ui")))
         self.title_label.setStyleSheet(get_style("label_title"))
 
         header_layout.addWidget(self.back_btn)
@@ -59,20 +59,9 @@ class SessionDetailWidget(QFrame):
         self.btn_alert_info.setFont(QFont(*get_font("sm", "bold", "ui")))
         self.btn_alert_info.setFixedSize(90, SIZES["button"]["height_lg"])
         self.btn_alert_info.setCursor(Qt.PointingHandCursor)
-        self.btn_alert_info.setStyleSheet(f"""
+        self.btn_alert_info.setStyleSheet(get_style("button_select") + f"""
             QPushButton {{
-                color: {COLORS['text_secondary']};
-                background-color: #3A3A60;
-                border: 1px solid {COLORS['border_light']};
-                border-radius: {SIZES['radius']['base']}px;
                 font-weight: {FONTS['weight']['bold']};
-            }}
-            QPushButton:hover {{
-                background-color: #46467A;
-                border-color: #5A5A90;
-            }}
-            QPushButton:pressed {{
-                background-color: #2E2E50;
             }}
         """)
         self.btn_alert_info.clicked.connect(self._on_alert_info_clicked)
@@ -81,21 +70,7 @@ class SessionDetailWidget(QFrame):
         self.btn_export_report.setFont(QFont(*get_font("sm", "bold", "ui")))
         self.btn_export_report.setFixedSize(90, SIZES["button"]["height_lg"])
         self.btn_export_report.setCursor(Qt.PointingHandCursor)
-        self.btn_export_report.setStyleSheet(f"""
-            QPushButton {{
-                color: #FFFFFF;
-                background-color: #00C853;
-                border: none;
-                border-radius: {SIZES['radius']['base']}px;
-                font-weight: {FONTS['weight']['bold']};
-            }}
-            QPushButton:hover {{
-                background-color: #00E676;
-            }}
-            QPushButton:pressed {{
-                background-color: #00A844;
-            }}
-        """)
+        self.btn_export_report.setStyleSheet(get_style("completion_btn_temp"))
         self.btn_export_report.clicked.connect(self._on_export_report_clicked)
 
         header_layout.addWidget(self.btn_alert_info)
@@ -136,7 +111,7 @@ class SessionDetailWidget(QFrame):
 
         # ---- 图表标题 ----
         chart_title_label = QLabel("专注度评分趋势")
-        chart_title_label.setFont(QFont(*get_font("xl", "bold", "display")))
+        chart_title_label.setFont(QFont(*get_font("xl", "bold", "ui")))
         chart_title_label.setStyleSheet(get_style("label_title"))
         layout.addWidget(chart_title_label)
 

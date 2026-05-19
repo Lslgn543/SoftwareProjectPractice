@@ -62,7 +62,7 @@ class VideoWidget(QFrame):
 
                 if self._show_face_boxes and self._current_face_boxes:
                     painter = QPainter(scaled_pixmap)
-                    pen = QPen(QColor("#00FF00"), 2)
+                    pen = QPen(QColor(COLORS["focus_high"]), 2)
                     painter.setPen(pen)
                     scale_x = scaled_pixmap.width() / w
                     scale_y = scaled_pixmap.height() / h
@@ -144,8 +144,7 @@ class VideoWidget(QFrame):
         self.video_label.setText("预处理模块运行中...")
         self.video_label.setStyleSheet(
             f"color: {COLORS['focus_high']}; "
-            f"background-color: qradialgradient(cx:0.5, cy:0.5, radius:0.8, "
-            f"fx:0.5, fy:0.5, stop:0 #1A1A3A, stop:1 {COLORS['background']}); "
+            f"background-color: {COLORS['background']}; "
             f"border-radius: {SIZES['radius']['base']}px;"
         )
 

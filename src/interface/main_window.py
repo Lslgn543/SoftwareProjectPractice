@@ -2,7 +2,7 @@ from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QStackedLayout, QSplitter, QMenu, QFileDialog, QMessageBox
 
 from .config import WINDOW_WIDTH, WINDOW_HEIGHT, TOP_NAV_HEIGHT, LEFT_BAR_WIDTH, RIGHT_PANEL_WIDTH
-from .styles import get_style, get_spacing, SIZES
+from .styles import get_style, get_spacing, SIZES, COLORS
 from .top_nav_bar import TopNavBar
 from .left_sidebar import LeftSideBar
 from .video_widget import VideoWidget
@@ -393,26 +393,26 @@ class MainWindow(QMainWindow):
         confirm_box.setIcon(QMessageBox.Question)
         confirm_box.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
         confirm_box.setDefaultButton(QMessageBox.No)
-        confirm_box.setStyleSheet("""
-            QMessageBox {
-                background-color: #FFFFFF;
-                color: #000000;
-            }
-            QLabel {
-                color: #000000;
-                background-color: #FFFFFF;
-            }
-            QPushButton {
-                color: #000000;
-                background-color: #E0E0E0;
-                border: 1px solid #AAAAAA;
-                border-radius: 4px;
+        confirm_box.setStyleSheet(f"""
+            QMessageBox {{
+                background-color: {COLORS['surface']};
+                color: {COLORS['text']};
+            }}
+            QLabel {{
+                color: {COLORS['text']};
+                background-color: {COLORS['surface']};
+            }}
+            QPushButton {{
+                color: {COLORS['text']};
+                background-color: {COLORS['card']};
+                border: 1px solid {COLORS['border']};
+                border-radius: 6px;
                 padding: 6px 16px;
                 min-width: 80px;
-            }
-            QPushButton:hover {
-                background-color: #D0D0D0;
-            }
+            }}
+            QPushButton:hover {{
+                background-color: {COLORS['card_hover']};
+            }}
         """)
         if confirm_box.exec_() != QMessageBox.Yes:
             return
@@ -451,21 +451,21 @@ class MainWindow(QMainWindow):
         alerts = unified_data_manager.generate_alarm_events(session_id)
 
         menu = QMenu(self)
-        menu.setStyleSheet("""
-            QMenu {
-                background-color: #262650;
-                color: #FFFFFF;
-                border: 1px solid #3A3A60;
+        menu.setStyleSheet(f"""
+            QMenu {{
+                background-color: {COLORS['card']};
+                color: {COLORS['text']};
+                border: 1px solid {COLORS['border_light']};
                 border-radius: 8px;
                 padding: 4px;
-            }
-            QMenu::item {
+            }}
+            QMenu::item {{
                 padding: 8px 32px;
                 border-radius: 4px;
-            }
-            QMenu::item:selected {
-                background-color: #7A5CFF;
-            }
+            }}
+            QMenu::item:selected {{
+                background-color: {COLORS['primary']};
+            }}
         """)
 
         excel_action = menu.addAction("导出 Excel (.xlsx)")
@@ -539,25 +539,25 @@ class MainWindow(QMainWindow):
         box = QMessageBox()
         box.setWindowTitle(title)
         box.setText(text)
-        box.setStyleSheet("""
-            QMessageBox {
-                background-color: #FFFFFF;
-                color: #000000;
-            }
-            QLabel {
-                color: #000000;
-            }
-            QPushButton {
-                color: #000000;
-                background-color: #E0E0E0;
-                border: 1px solid #AAAAAA;
-                border-radius: 4px;
+        box.setStyleSheet(f"""
+            QMessageBox {{
+                background-color: {COLORS['surface']};
+                color: {COLORS['text']};
+            }}
+            QLabel {{
+                color: {COLORS['text']};
+            }}
+            QPushButton {{
+                color: {COLORS['text']};
+                background-color: {COLORS['card']};
+                border: 1px solid {COLORS['border']};
+                border-radius: 6px;
                 padding: 6px 16px;
                 min-width: 80px;
-            }
-            QPushButton:hover {
-                background-color: #D0D0D0;
-            }
+            }}
+            QPushButton:hover {{
+                background-color: {COLORS['card_hover']};
+            }}
         """)
         if level == "info":
             box.setIcon(QMessageBox.Information)
@@ -569,31 +569,31 @@ class MainWindow(QMainWindow):
 
     @staticmethod
     def _question(title: str, text: str) -> bool:
-        """显示不受深色主题影响的确认框，返回 True 表示用户点击 Yes"""
+        """显示确认框，返回 True 表示用户点击 Yes"""
         box = QMessageBox()
         box.setWindowTitle(title)
         box.setText(text)
         box.setIcon(QMessageBox.Question)
         box.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
         box.setDefaultButton(QMessageBox.No)
-        box.setStyleSheet("""
-            QMessageBox {
-                background-color: #FFFFFF;
-                color: #000000;
-            }
-            QLabel {
-                color: #000000;
-            }
-            QPushButton {
-                color: #000000;
-                background-color: #E0E0E0;
-                border: 1px solid #AAAAAA;
-                border-radius: 4px;
+        box.setStyleSheet(f"""
+            QMessageBox {{
+                background-color: {COLORS['surface']};
+                color: {COLORS['text']};
+            }}
+            QLabel {{
+                color: {COLORS['text']};
+            }}
+            QPushButton {{
+                color: {COLORS['text']};
+                background-color: {COLORS['card']};
+                border: 1px solid {COLORS['border']};
+                border-radius: 6px;
                 padding: 6px 16px;
                 min-width: 80px;
-            }
-            QPushButton:hover {
-                background-color: #D0D0D0;
-            }
+            }}
+            QPushButton:hover {{
+                background-color: {COLORS['card_hover']};
+            }}
         """)
         return box.exec_() == QMessageBox.Yes

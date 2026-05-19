@@ -69,7 +69,7 @@ class RightPanel(QFrame):
 
         # ---- 标题 (L2) ----
         title_label = QLabel("实时评审")
-        title_label.setFont(QFont(*get_font("xl", "bold", "display")))
+        title_label.setFont(QFont(*get_font("xl", "bold", "ui")))
         title_label.setStyleSheet(get_style("label_title"))
         layout.addWidget(title_label)
 
@@ -118,7 +118,7 @@ class RightPanel(QFrame):
 
         # ---- 当前专注度 (L5) ----
         focus_wrapper = QWidget()
-        focus_wrapper.setStyleSheet(get_style("surface_radial"))
+        focus_wrapper.setStyleSheet(get_style("container"))
         focus_wrapper.setFixedHeight(150)
         focus_wrapper.setGraphicsEffect(create_card_shadow(elevated=False))
         focus_layout = QVBoxLayout(focus_wrapper)
@@ -132,7 +132,7 @@ class RightPanel(QFrame):
 
         self.focus_score_label = QLabel("0.0")
         self.focus_score_label.setFont(QFont(
-            *get_font("hero", "extrabold", "display")
+            *get_font("hero", "extrabold", "ui")
         ))
         self.focus_score_label.setStyleSheet(
             f"color: {COLORS['focus_high']}; background: transparent;"
