@@ -1,5 +1,6 @@
-from PyQt5.QtCore import Qt
-from PyQt5.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QStackedLayout, QSplitter, QMenu, QFileDialog, QMessageBox
+import threading
+from PyQt5.QtCore import Qt, QTimer
+from PyQt5.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QStackedLayout, QSplitter, QMenu, QFileDialog, QMessageBox, QLabel
 
 from .config import WINDOW_WIDTH, WINDOW_HEIGHT, TOP_NAV_HEIGHT, LEFT_BAR_WIDTH, RIGHT_PANEL_WIDTH
 from .styles import get_style, get_spacing, SIZES, COLORS
@@ -27,28 +28,28 @@ class MainWindow(QMainWindow):
         self.current_mode = "class"
         self.current_face_id = None
         self.current_device_id = 0
+        self._init_result = {"done": False, "success": False}
+        self._init_thread = None
+        self._init_poll_timer = None
         self.init_ui()
-        self._setup_interface_manager()
         self.connect_signals()
-        self.init_data()
+        self._start_async_init()
 
-    def _setup_interface_manager(self):
-        """配置接口管理器，连接预处理模块和状态估计模块"""
+    def _start_async_init(self):
+        """快速显示窗口，后台异步加载预处理模型。"""
 
-        # 数据库必须在任何模块初始化之前就绪
+        # 数据库（同步，轻量）
         if not unified_data_manager.initialize_database():
             print("[MainWindow] 警告: 数据库初始化失败，历史数据功能不可用")
 
-        if unified_data_manager.initialize_real_backend():
-            print("[MainWindow] 已连接真实预处理后端")
-        else:
-            print("[MainWindow] 使用模拟数据模式（预处理模块不可用）")
-            interface_manager.set_preprocessing_callback(
-                lambda cmd, params: print(
-                    f"[MainWindow] 预处理指令(MOCK): {cmd}, params: {params}"
-                ) or {"success": True, "msg": "mock"}
-            )
+        # 先设置 MOCK 回调，真实后端就绪后自动替换
+        interface_manager.set_preprocessing_callback(
+            lambda cmd, params: print(
+                f"[MainWindow] 预处理指令(MOCK): {cmd}, params: {params}"
+            ) or {"success": True, "msg": "mock"}
+        )
 
+        # 状态估计（同步，轻量，不依赖预处理）
         if unified_data_manager.initialize_state_estimation_backend():
             print("[MainWindow] 已连接真实状态估计后端")
         else:
@@ -60,6 +61,54 @@ class MainWindow(QMainWindow):
             )
 
         unified_data_manager.register_camera_list_callback(self.on_camera_list_received)
+
+        # 状态栏显示加载进度
+        self._status_label = QLabel("正在初始化模型...")
+        self.statusBar().addPermanentWidget(self._status_label)
+
+        # 后台线程加载预处理模型
+        self._init_thread = threading.Thread(target=self._init_real_backend_thread, daemon=True)
+        self._init_thread.start()
+
+        # 轮询完成状态
+        self._init_poll_timer = QTimer()
+        self._init_poll_timer.timeout.connect(self._poll_init_complete)
+        self._init_poll_timer.start(200)
+
+    def _init_real_backend_thread(self):
+        """在后台线程中初始化真实预处理后端。"""
+        progress_cb = lambda msg, pct: self._init_result.__setitem__("message", msg)
+        try:
+            success = unified_data_manager.initialize_real_backend(progress_callback=progress_cb)
+            self._init_result["done"] = True
+            self._init_result["success"] = success
+            if not success:
+                self._init_result["message"] = "真实预处理后端初始化失败"
+                print("[MainWindow] 预处理模块初始化失败（后台线程）")
+        except Exception as e:
+            self._init_result["done"] = True
+            self._init_result["success"] = False
+            self._init_result["message"] = str(e)
+            print(f"[MainWindow] 预处理模块初始化异常: {e}")
+
+    def _poll_init_complete(self):
+        """轮询：检查后台初始化是否完成。"""
+        if not self._init_result["done"]:
+            msg = self._init_result.get("message", "正在初始化模型...")
+            self._status_label.setText(msg)
+            return
+
+        # 初始化完成
+        self._init_poll_timer.stop()
+        self.statusBar().removeWidget(self._status_label)
+        self._status_label = None
+
+        if self._init_result["success"]:
+            print("[MainWindow] 已连接真实预处理后端")
+        else:
+            print("[MainWindow] 使用模拟数据模式（预处理模块不可用）")
+
+        self.init_data()
 
     def init_ui(self):
         central_widget = QWidget()

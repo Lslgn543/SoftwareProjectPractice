@@ -536,9 +536,15 @@ class UnifiedDataManager:
 
     # ──────────────────── 真实后端初始化 ────────────────────
 
-    def initialize_real_backend(self) -> bool:
+    def initialize_real_backend(
+        self,
+        progress_callback: Optional[Callable[[str, float], None]] = None,
+    ) -> bool:
         """
         初始化真实预处理后端，将 PreprocessingService 接入 interface_manager。
+
+        Args:
+            progress_callback: 可选的进度回调，接收 (消息, 进度百分比)
 
         Returns:
             True 表示初始化成功
@@ -553,6 +559,7 @@ class UnifiedDataManager:
                 ui_callback=self._on_preprocessing_ui_packet,
                 camera_list_callback=self._on_preprocessing_camera_list,
                 log_callback=lambda msg: print(f"[Preprocessing] {msg}"),
+                progress_callback=progress_callback,
             )
 
             # 注入数据库人脸写回调（回调解耦：预处理模块不直接 import 数据库模块）
