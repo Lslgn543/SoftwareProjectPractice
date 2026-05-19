@@ -1,5 +1,5 @@
 import pyqtgraph as pg
-from PyQt5.QtCore import Qt, pyqtSignal, QTimer
+from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtGui import QFont
 from PyQt5.QtWidgets import (
     QFrame, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QProgressBar,
@@ -9,8 +9,6 @@ from PyQt5.QtWidgets import (
 from .config import RIGHT_PANEL_WIDTH
 from .styles import COLORS, FONTS, SIZES, get_style, get_font, get_spacing
 from .styles.effects import create_card_shadow
-from .interface_manager import interface_manager, FocusResultData
-from .unified_data_manager import unified_data_manager
 
 
 def _progress_color(value: float) -> str:
@@ -26,6 +24,7 @@ class RightPanel(QFrame):
     start_analysis = pyqtSignal()
     stop_analysis = pyqtSignal()
     score_updated = pyqtSignal(dict)
+    toast_requested = pyqtSignal(str, str)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -33,18 +32,12 @@ class RightPanel(QFrame):
         self.setStyleSheet(get_style("card_elevated_glass"))
         self.setGraphicsEffect(create_card_shadow(elevated=True))
         self.is_running = False
+        self._start_validator = None
         self.init_ui()
         self.score_updated.connect(self.update_scores)
-        self._register_interface_callback()
 
-        self.simulation_timer = QTimer()
-        self.simulation_timer.timeout.connect(self.generate_simulated_data)
-        self.simulation_interval = 1000
-
-    def _register_interface_callback(self):
-        interface_manager.register_focus_result_callback(self.on_focus_result_received)
-
-    def on_focus_result_received(self, data: FocusResultData):
+    def handle_focus_result(self, data):
+        """由 MainWindow 调用，统一处理 MOCK/REAL 专注度结果"""
         score_dict = {
             "head_pose": data.head_pose_score,
             "behavior": data.behavior_score,
@@ -56,8 +49,10 @@ class RightPanel(QFrame):
         self.score_updated.emit(score_dict)
 
         if data.warn_msg:
-            warn_text = f"{data.warn_msg.get('type', '')}: {data.warn_msg.get('detail', '')}"
-            self.parent().parent().video_widget.update_warn(warn_text)
+            self.toast_requested.emit(
+                data.warn_msg.get("type", ""),
+                data.warn_msg.get("detail", ""),
+            )
 
     def init_ui(self):
         layout = QVBoxLayout(self)
@@ -69,7 +64,7 @@ class RightPanel(QFrame):
 
         # ---- 标题 (L2) ----
         title_label = QLabel("实时评审")
-        title_label.setFont(QFont(*get_font("xl", "bold", "display")))
+        title_label.setFont(QFont(*get_font("xl", "bold", "ui")))
         title_label.setStyleSheet(get_style("label_title"))
         layout.addWidget(title_label)
 
@@ -118,7 +113,7 @@ class RightPanel(QFrame):
 
         # ---- 当前专注度 (L5) ----
         focus_wrapper = QWidget()
-        focus_wrapper.setStyleSheet(get_style("surface_radial"))
+        focus_wrapper.setStyleSheet(get_style("container"))
         focus_wrapper.setFixedHeight(150)
         focus_wrapper.setGraphicsEffect(create_card_shadow(elevated=False))
         focus_layout = QVBoxLayout(focus_wrapper)
@@ -132,7 +127,7 @@ class RightPanel(QFrame):
 
         self.focus_score_label = QLabel("0.0")
         self.focus_score_label.setFont(QFont(
-            *get_font("hero", "extrabold", "display")
+            *get_font("hero", "extrabold", "ui")
         ))
         self.focus_score_label.setStyleSheet(
             f"color: {COLORS['focus_high']}; background: transparent;"
@@ -188,6 +183,8 @@ class RightPanel(QFrame):
         layout.addWidget(self.control_btn)
 
     def update_scores(self, score_dict):
+        if not self.is_running:
+            return
         for key in ["head_pose", "behavior", "expression", "evidence", "people"]:
             if key in score_dict:
                 val = score_dict[key]
@@ -212,19 +209,44 @@ class RightPanel(QFrame):
             self.curve_line.setData(self.curve_data)
             self.curve_fill.setData(self.curve_data)
 
-    def generate_simulated_data(self):
-        score_dict = unified_data_manager.generate_realtime_scores()
-        if score_dict:
-            self.score_updated.emit(score_dict)
+    def set_start_validator(self, validator):
+        """设置开始分析前的验证回调。validator 返回 (bool, str)，True 表示通过。"""
+        self._start_validator = validator
+
+    def reset_button_state(self):
+        """由 MainWindow 在验证失败时调用，回退按钮状态"""
+        self.is_running = False
+        self.control_btn.setText("▶  开始分析")
+
+    def reset_scores(self):
+        """停止分析时重置所有评分为 0"""
+        for key in ["head_pose", "behavior", "expression", "evidence", "people"]:
+            self.score_items[key]["label"].setText("0.0")
+            self.score_items[key]["progress"].setValue(0)
+            self.score_items[key]["progress"].setStyleSheet(
+                f"QProgressBar {{ background-color: {COLORS['card']}; "
+                f"border-radius: {SIZES['radius']['sm']}px; }}\n"
+                f"QProgressBar::chunk {{ background-color: {COLORS['focus_low']}; "
+                f"border-radius: {SIZES['radius']['sm']}px; }}"
+            )
+        self.focus_score_label.setText("0.0")
+        self.focus_score_label.setStyleSheet(
+            f"color: {COLORS['focus_high']}; background: transparent;"
+        )
+        self.curve_data = [0.0] * 50
+        self.curve_line.setData(self.curve_data)
+        self.curve_fill.setData(self.curve_data)
 
     def on_control_click(self):
         if not self.is_running:
+            if self._start_validator is not None:
+                ok, msg = self._start_validator()
+                if not ok:
+                    return
             self.is_running = True
             self.control_btn.setText("■  停止分析")
             self.start_analysis.emit()
-            self.simulation_timer.start(self.simulation_interval)
         else:
             self.is_running = False
             self.control_btn.setText("▶  开始分析")
             self.stop_analysis.emit()
-            self.simulation_timer.stop()
