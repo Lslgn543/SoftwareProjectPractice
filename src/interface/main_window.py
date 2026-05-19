@@ -2,7 +2,7 @@ from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QStackedLayout, QSplitter, QMenu, QFileDialog, QMessageBox
 
 from .config import WINDOW_WIDTH, WINDOW_HEIGHT, TOP_NAV_HEIGHT, LEFT_BAR_WIDTH, RIGHT_PANEL_WIDTH
-from .styles import get_style, get_spacing
+from .styles import get_style, get_spacing, SIZES
 from .top_nav_bar import TopNavBar
 from .left_sidebar import LeftSideBar
 from .video_widget import VideoWidget
@@ -89,8 +89,8 @@ class MainWindow(QMainWindow):
         self.right_panel.setMaximumWidth(RIGHT_PANEL_WIDTH * 2)
 
         self.filter_sidebar = FilterSidebar()
-        self.filter_sidebar.setMinimumWidth(280)
-        self.filter_sidebar.setMaximumWidth(400)
+        self.filter_sidebar.setMinimumWidth(SIZES["sidebar"]["width"])
+        self.filter_sidebar.setMaximumWidth(SIZES["sidebar"]["width"] + 80)
 
         self.data_record_widget = DataRecordWidget()
         self.data_record_widget.setMinimumWidth(RIGHT_PANEL_WIDTH)
