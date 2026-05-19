@@ -33,6 +33,7 @@ class RightPanel(QFrame):
         self.setStyleSheet(get_style("card_elevated_glass"))
         self.setGraphicsEffect(create_card_shadow(elevated=True))
         self.is_running = False
+        self._start_validator = None
         self.init_ui()
         self.score_updated.connect(self.update_scores)
         self._register_interface_callback()
@@ -56,8 +57,10 @@ class RightPanel(QFrame):
         self.score_updated.emit(score_dict)
 
         if data.warn_msg:
-            warn_text = f"{data.warn_msg.get('type', '')}: {data.warn_msg.get('detail', '')}"
-            self.parent().parent().video_widget.update_warn(warn_text)
+            self.parent().parent().video_widget.show_toast(
+                data.warn_msg.get("type", ""),
+                data.warn_msg.get("detail", ""),
+            )
 
     def init_ui(self):
         layout = QVBoxLayout(self)
@@ -188,6 +191,8 @@ class RightPanel(QFrame):
         layout.addWidget(self.control_btn)
 
     def update_scores(self, score_dict):
+        if not self.is_running:
+            return
         for key in ["head_pose", "behavior", "expression", "evidence", "people"]:
             if key in score_dict:
                 val = score_dict[key]
@@ -217,8 +222,41 @@ class RightPanel(QFrame):
         if score_dict:
             self.score_updated.emit(score_dict)
 
+    def set_start_validator(self, validator):
+        """设置开始分析前的验证回调。validator 返回 (bool, str)，True 表示通过。"""
+        self._start_validator = validator
+
+    def reset_button_state(self):
+        """由 MainWindow 在验证失败时调用，回退按钮状态"""
+        self.is_running = False
+        self.control_btn.setText("▶  开始分析")
+        self.simulation_timer.stop()
+
+    def reset_scores(self):
+        """停止分析时重置所有评分为 0"""
+        for key in ["head_pose", "behavior", "expression", "evidence", "people"]:
+            self.score_items[key]["label"].setText("0.0")
+            self.score_items[key]["progress"].setValue(0)
+            self.score_items[key]["progress"].setStyleSheet(
+                f"QProgressBar {{ background-color: {COLORS['card']}; "
+                f"border-radius: {SIZES['radius']['sm']}px; }}\n"
+                f"QProgressBar::chunk {{ background-color: {COLORS['focus_low']}; "
+                f"border-radius: {SIZES['radius']['sm']}px; }}"
+            )
+        self.focus_score_label.setText("0.0")
+        self.focus_score_label.setStyleSheet(
+            f"color: {COLORS['focus_high']}; background: transparent;"
+        )
+        self.curve_data = [0.0] * 50
+        self.curve_line.setData(self.curve_data)
+        self.curve_fill.setData(self.curve_data)
+
     def on_control_click(self):
         if not self.is_running:
+            if self._start_validator is not None:
+                ok, msg = self._start_validator()
+                if not ok:
+                    return
             self.is_running = True
             self.control_btn.setText("■  停止分析")
             self.start_analysis.emit()

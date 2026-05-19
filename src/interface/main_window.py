@@ -216,6 +216,7 @@ class MainWindow(QMainWindow):
         self.top_nav_query.mode_changed.connect(self.on_mode_changed)
         self.right_panel.start_analysis.connect(self.on_start_analysis)
         self.right_panel.stop_analysis.connect(self.on_stop_analysis)
+        self.right_panel.set_start_validator(self._validate_start_analysis)
         self.filter_sidebar.filter_applied.connect(self.on_filter_applied)
         self.filter_sidebar.chart_options_changed.connect(self.on_chart_options_changed)
         self.data_record_widget.session_selected.connect(self.on_session_clicked)
@@ -330,12 +331,15 @@ class MainWindow(QMainWindow):
         self.current_face_id = face_id
         print(f"[MainWindow] 当前选中人脸: {face_id}")
 
-    def on_start_analysis(self):
-        print("[MainWindow] 开始分析")
-
+    def _validate_start_analysis(self):
+        """开始分析前验证，被 RightPanel.on_control_click 调用。返回 (bool, str)。"""
         if not self.left_sidebar.has_faces():
             self._msg("warning", "提示", "请先完成人脸注册")
-            return
+            return False, ""
+        return True, ""
+
+    def on_start_analysis(self):
+        print("[MainWindow] 开始分析")
 
         face_id = self.left_sidebar.get_selected_face_id()
         if face_id:
@@ -362,8 +366,21 @@ class MainWindow(QMainWindow):
         self.top_nav_query.set_mode_buttons_enabled(False)
         self.left_sidebar.set_faces_enabled(False)
 
+        # TODO: 测试告警 Toast — 状态估计模块实现后删除
+        self._test_toast_triggers()
+
+    def _test_toast_triggers(self):
+        """依次触发多条测试 Toast，验证淡入淡出、替换、停止关闭。"""
+        QTimer.singleShot(2000, lambda: self.video_widget.show_toast(
+            "低分告警", "专注度低于阈值"
+        ))
+        QTimer.singleShot(4500, lambda: self.video_widget.show_toast(
+            "多人", "检测到多人出现"
+        ))
+
     def on_stop_analysis(self):
         print("[MainWindow] 停止分析")
+        self.video_widget.dismiss_toast()
         self.video_widget.stop_processing()
 
         result = interface_manager.toggle_capture(device_id=self.current_device_id, start=False)
@@ -378,6 +395,7 @@ class MainWindow(QMainWindow):
         self.top_nav.set_mode_buttons_enabled(True)
         self.top_nav_query.set_mode_buttons_enabled(True)
         self.left_sidebar.set_faces_enabled(True)
+        self.right_panel.reset_scores()
 
     def on_camera_selected(self, device_id: int):
         """用户选择摄像头"""

@@ -138,19 +138,19 @@ class TopNavBar(QFrame):
 
     def set_recording(self, is_recording):
         if is_recording:
-            self.record_dot.setStyleSheet(get_style("dot_danger"))
-            self.record_label.setText("录制中")
-            self.record_label.setStyleSheet(
-                f"color: {COLORS['danger']}; background: transparent;"
-            )
-            self.record_frame.setStyleSheet(get_style("badge_danger"))
-        else:
             self.record_dot.setStyleSheet(get_style("dot_success"))
-            self.record_label.setText("未录制")
+            self.record_label.setText("录制中")
             self.record_label.setStyleSheet(
                 f"color: {COLORS['focus_high']}; background: transparent;"
             )
             self.record_frame.setStyleSheet(get_style("badge_success"))
+        else:
+            self.record_dot.setStyleSheet(get_style("dot_danger"))
+            self.record_label.setText("未录制")
+            self.record_label.setStyleSheet(
+                f"color: {COLORS['danger']}; background: transparent;"
+            )
+            self.record_frame.setStyleSheet(get_style("badge_danger"))
 
     def set_mode_buttons_enabled(self, enabled: bool):
         for i in range(self.mode_group.buttons().__len__()):
