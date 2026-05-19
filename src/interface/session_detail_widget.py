@@ -5,7 +5,6 @@ from PyQt5.QtWidgets import (
     QHeaderView, QPushButton, QWidget,
 )
 
-import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
@@ -66,7 +65,7 @@ class SessionDetailWidget(QFrame):
         """)
         self.btn_alert_info.clicked.connect(self._on_alert_info_clicked)
 
-        self.btn_export_report = QPushButton("导出报告")
+        self.btn_export_report = QPushButton("导出")
         self.btn_export_report.setFont(QFont(*get_font("sm", "bold", "ui")))
         self.btn_export_report.setFixedSize(90, SIZES["button"]["height_lg"])
         self.btn_export_report.setCursor(Qt.PointingHandCursor)
@@ -236,7 +235,7 @@ class SessionDetailWidget(QFrame):
             self.canvas.draw()
             return
 
-        x = np.arange(n)
+        x = [r.get("timestamp", 0) for r in sampled]
 
         line_configs = [
             ("final_focus", "最终专注度", cc[0], 2.5),
@@ -255,7 +254,7 @@ class SessionDetailWidget(QFrame):
                         linestyle="-" if key == "final_focus" else "--")
 
         ax.set_title("专注度评分变化趋势", fontsize=12, color=COLORS["text"])
-        ax.set_xlabel("采样点", fontsize=10, color=COLORS["text_hint"])
+        ax.set_xlabel("时间 (秒)", fontsize=10, color=COLORS["text_hint"])
         ax.set_ylabel("评分", fontsize=10, color=COLORS["text_hint"])
         ax.set_ylim(0, 100)
         ax.grid(True, color=COLORS["border"], linestyle="--", alpha=0.4)

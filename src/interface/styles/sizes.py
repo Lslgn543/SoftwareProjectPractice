@@ -37,7 +37,7 @@ SIZES = {
     },
 
     "toolbar": {
-        "height": 120,
+        "height": 140,
     },
 
     "button": {
