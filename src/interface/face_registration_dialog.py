@@ -17,7 +17,7 @@ from PyQt5.QtWidgets import (
 )
 
 from .styles import COLORS, SIZES, get_style, get_font, get_spacing
-from .interface_manager import interface_manager
+from .unified_data_manager import unified_data_manager
 
 # 4 个采集姿势
 POSE_GUIDES = [
@@ -404,12 +404,12 @@ class FaceRegistrationDialog(QDialog):
         """统一清理：关闭摄像头 + 清除回调 + 清空缓冲区"""
         if self._capture_started:
             print("[FaceRegistrationDialog] 清理摄像头资源")
-            interface_manager.toggle_capture(
+            unified_data_manager.toggle_capture(
                 device_id=self._device_id, start=False
             )
             self._capture_started = False
-        interface_manager.clear_face_registration_frame_callback()
-        interface_manager.clear_face_registration_result_callback()
+        unified_data_manager.clear_face_registration_frame_callback()
+        unified_data_manager.clear_face_registration_result_callback()
         self._frame_buffer.clear()
         self._collected_frames.clear()
 
@@ -474,7 +474,7 @@ class FaceRegistrationDialog(QDialog):
         self._student_name = name
 
         print(f"[FaceRegistrationDialog] 开启摄像头 device_id={self._device_id}")
-        result = interface_manager.toggle_capture(
+        result = unified_data_manager.toggle_capture(
             device_id=self._device_id, start=True
         )
         if not result.get("success", False):
@@ -482,7 +482,7 @@ class FaceRegistrationDialog(QDialog):
             return
 
         self._capture_started = True
-        interface_manager.register_face_registration_frame_callback(
+        unified_data_manager.register_face_registration_frame_callback(
             self._on_frame_received
         )
         self._buffer_start_time = time.time()
@@ -552,10 +552,10 @@ class FaceRegistrationDialog(QDialog):
         if idx_new >= len(POSE_GUIDES):
             # 采集完成
             self._capture_started = False
-            interface_manager.toggle_capture(
+            unified_data_manager.toggle_capture(
                 device_id=self._device_id, start=False
             )
-            interface_manager.clear_face_registration_frame_callback()
+            unified_data_manager.clear_face_registration_frame_callback()
             self._show_completion()
         else:
             self.pose_guide_label.setText(POSE_GUIDES[idx_new])
@@ -611,7 +611,7 @@ class FaceRegistrationDialog(QDialog):
         self.stacked.setCurrentIndex(2)
 
         # 注册异步结果回调（在发送注册指令之前）
-        interface_manager.register_face_registration_result_callback(
+        unified_data_manager.register_face_registration_result_callback(
             self._on_registration_result
         )
 
@@ -624,7 +624,7 @@ class FaceRegistrationDialog(QDialog):
 
     def _on_registration_result(self, result: dict):
         """预处理模块异步返回的人脸注册结果"""
-        interface_manager.clear_face_registration_result_callback()
+        unified_data_manager.clear_face_registration_result_callback()
 
         if result.get("success"):
             student_name = result.get("student_name", self._student_name)

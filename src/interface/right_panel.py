@@ -1,5 +1,5 @@
 import pyqtgraph as pg
-from PyQt5.QtCore import Qt, pyqtSignal, QTimer
+from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtGui import QFont
 from PyQt5.QtWidgets import (
     QFrame, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QProgressBar,
@@ -9,8 +9,6 @@ from PyQt5.QtWidgets import (
 from .config import RIGHT_PANEL_WIDTH
 from .styles import COLORS, FONTS, SIZES, get_style, get_font, get_spacing
 from .styles.effects import create_card_shadow
-from .interface_manager import interface_manager, FocusResultData
-from .unified_data_manager import unified_data_manager
 
 
 def _progress_color(value: float) -> str:
@@ -37,16 +35,9 @@ class RightPanel(QFrame):
         self._start_validator = None
         self.init_ui()
         self.score_updated.connect(self.update_scores)
-        self._register_interface_callback()
 
-        self.simulation_timer = QTimer()
-        self.simulation_timer.timeout.connect(self.generate_simulated_data)
-        self.simulation_interval = 1000
-
-    def _register_interface_callback(self):
-        interface_manager.register_focus_result_callback(self.on_focus_result_received)
-
-    def on_focus_result_received(self, data: FocusResultData):
+    def handle_focus_result(self, data):
+        """由 MainWindow 调用，统一处理 MOCK/REAL 专注度结果"""
         score_dict = {
             "head_pose": data.head_pose_score,
             "behavior": data.behavior_score,
@@ -218,17 +209,6 @@ class RightPanel(QFrame):
             self.curve_line.setData(self.curve_data)
             self.curve_fill.setData(self.curve_data)
 
-    def generate_simulated_data(self):
-        score_dict = unified_data_manager.generate_realtime_scores()
-        if score_dict:
-            warn_info = score_dict.pop("warn_info", None)
-            self.score_updated.emit(score_dict)
-            if warn_info:
-                self.toast_requested.emit(
-                    warn_info.get("type", ""),
-                    warn_info.get("detail", ""),
-                )
-
     def set_start_validator(self, validator):
         """设置开始分析前的验证回调。validator 返回 (bool, str)，True 表示通过。"""
         self._start_validator = validator
@@ -237,7 +217,6 @@ class RightPanel(QFrame):
         """由 MainWindow 在验证失败时调用，回退按钮状态"""
         self.is_running = False
         self.control_btn.setText("▶  开始分析")
-        self.simulation_timer.stop()
 
     def reset_scores(self):
         """停止分析时重置所有评分为 0"""
@@ -267,9 +246,7 @@ class RightPanel(QFrame):
             self.is_running = True
             self.control_btn.setText("■  停止分析")
             self.start_analysis.emit()
-            self.simulation_timer.start(self.simulation_interval)
         else:
             self.is_running = False
             self.control_btn.setText("▶  开始分析")
             self.stop_analysis.emit()
-            self.simulation_timer.stop()

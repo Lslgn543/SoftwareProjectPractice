@@ -1,4 +1,3 @@
-import threading
 from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QStackedLayout, QSplitter, QMenu, QFileDialog, QMessageBox, QLabel
 
@@ -11,8 +10,7 @@ from .right_panel import RightPanel
 from .filter_sidebar import FilterSidebar
 from .data_record_widget import DataRecordWidget
 from .session_detail_widget import SessionDetailWidget
-from .interface_manager import interface_manager
-from .unified_data_manager import unified_data_manager, CameraInfo
+from .unified_data_manager import unified_data_manager, CameraInfo, VideoFrameData, FocusResultData
 from .face_registration_dialog import FaceRegistrationDialog
 from .alert_info_dialog import AlertInfoDialog
 from .export_report_util import export_to_excel, export_to_pdf
@@ -28,8 +26,6 @@ class MainWindow(QMainWindow):
         self.current_mode = "class"
         self.current_face_id = None
         self.current_device_id = 0
-        self._init_result = {"done": False, "success": False}
-        self._init_thread = None
         self._init_poll_timer = None
         self.init_ui()
         self.connect_signals()
@@ -42,60 +38,29 @@ class MainWindow(QMainWindow):
         if not unified_data_manager.initialize_database():
             print("[MainWindow] 警告: 数据库初始化失败，历史数据功能不可用")
 
-        # 先设置 MOCK 回调，真实后端就绪后自动替换
-        interface_manager.set_preprocessing_callback(
-            lambda cmd, params: print(
-                f"[MainWindow] 预处理指令(MOCK): {cmd}, params: {params}"
-            ) or {"success": True, "msg": "mock"}
-        )
-
-        # 状态估计（同步，轻量，不依赖预处理）
-        if unified_data_manager.initialize_state_estimation_backend():
-            print("[MainWindow] 已连接真实状态估计后端")
-        else:
-            print("[MainWindow] 使用模拟数据模式（状态估计模块不可用）")
-            interface_manager.set_state_estimation_callback(
-                lambda cmd, params: print(
-                    f"[MainWindow] 状态估计指令(MOCK): {cmd}, params: {params}"
-                ) or {"success": True, "msg": "mock"}
-            )
+        # 统一初始化后端（Mock 适配器 / REAL 后端加载）
+        if not unified_data_manager.initialize_all_backends():
+            print("[MainWindow] 错误: 后端初始化失败")
 
         unified_data_manager.register_camera_list_callback(self.on_camera_list_received)
+
+        # 注册数据分发回调：MainWindow 作为数据中转中心
+        unified_data_manager.register_video_frame_callback(self._on_video_frame_for_display)
+        unified_data_manager.register_focus_result_callback(self._on_focus_result_for_display)
 
         # 状态栏显示加载进度
         self._status_label = QLabel("正在初始化模型...")
         self.statusBar().addPermanentWidget(self._status_label)
 
-        # 后台线程加载预处理模型
-        self._init_thread = threading.Thread(target=self._init_real_backend_thread, daemon=True)
-        self._init_thread.start()
-
-        # 轮询完成状态
+        # 轮询后台预处理初始化完成状态
         self._init_poll_timer = QTimer()
         self._init_poll_timer.timeout.connect(self._poll_init_complete)
         self._init_poll_timer.start(200)
 
-    def _init_real_backend_thread(self):
-        """在后台线程中初始化真实预处理后端。"""
-        progress_cb = lambda msg, pct: self._init_result.__setitem__("message", msg)
-        try:
-            success = unified_data_manager.initialize_real_backend(progress_callback=progress_cb)
-            self._init_result["done"] = True
-            self._init_result["success"] = success
-            if not success:
-                self._init_result["message"] = "真实预处理后端初始化失败"
-                print("[MainWindow] 预处理模块初始化失败（后台线程）")
-        except Exception as e:
-            self._init_result["done"] = True
-            self._init_result["success"] = False
-            self._init_result["message"] = str(e)
-            print(f"[MainWindow] 预处理模块初始化异常: {e}")
-
     def _poll_init_complete(self):
-        """轮询：检查后台初始化是否完成。"""
-        if not self._init_result["done"]:
-            msg = self._init_result.get("message", "正在初始化模型...")
-            self._status_label.setText(msg)
+        """轮询：检查后台预处理初始化是否完成。"""
+        if not unified_data_manager.init_done:
+            self._status_label.setText("正在初始化模型...")
             return
 
         # 初始化完成
@@ -103,7 +68,7 @@ class MainWindow(QMainWindow):
         self.statusBar().removeWidget(self._status_label)
         self._status_label = None
 
-        if self._init_result["success"]:
+        if unified_data_manager.init_success:
             print("[MainWindow] 已连接真实预处理后端")
         else:
             print("[MainWindow] 使用模拟数据模式（预处理模块不可用）")
@@ -251,6 +216,14 @@ class MainWindow(QMainWindow):
         face_ids = unified_data_manager.generate_face_ids()
         self.filter_sidebar.refresh_face_list(face_ids)
 
+    def _on_video_frame_for_display(self, data: VideoFrameData):
+        """UIM 视频帧回调 → 分发给 VideoWidget"""
+        self.video_widget.render_frame(data)
+
+    def _on_focus_result_for_display(self, data: FocusResultData):
+        """UIM 专注度结果回调 → 分发给 RightPanel"""
+        self.right_panel.handle_focus_result(data)
+
     def on_camera_list_received(self, cameras):
         """摄像头列表回调"""
         print(f"[MainWindow] 收到摄像头列表: {len(cameras)} 个摄像头")
@@ -264,7 +237,7 @@ class MainWindow(QMainWindow):
             self.switch_to_query_mode()
         else:
             self.switch_to_monitoring_mode(mode)
-            result = interface_manager.switch_mode(mode)
+            result = unified_data_manager.switch_mode(mode)
             print(f"[MainWindow] 切换模式: {mode}, 结果: {result}")
 
     def switch_to_monitoring_mode(self, mode):
@@ -348,17 +321,17 @@ class MainWindow(QMainWindow):
         monitored_faces = [face_id] if face_id else []
 
         print(f"[MainWindow] 监控人脸: {monitored_faces}")
-        result = interface_manager.toggle_capture(
+        result = unified_data_manager.toggle_capture(
             device_id=self.current_device_id, start=True,
             monitored_faces=monitored_faces,
         )
         print(f"[MainWindow] 摄像头控制结果: {result}")
 
-        session_result = interface_manager.toggle_analysis(start=True, face_id=face_id)
+        session_result = unified_data_manager.toggle_analysis(start=True, face_id=face_id)
         if session_result and "session_id" in session_result:
             print(f"[MainWindow] 创建会话成功: {session_result['session_id']}")
 
-        interface_manager.switch_mode(self.current_mode)
+        unified_data_manager.switch_mode(self.current_mode)
 
         self.video_widget.start_processing()
         self.top_nav.set_recording(True)
@@ -372,10 +345,10 @@ class MainWindow(QMainWindow):
         self.video_widget.dismiss_toast()
         self.video_widget.stop_processing()
 
-        result = interface_manager.toggle_capture(device_id=self.current_device_id, start=False)
+        result = unified_data_manager.toggle_capture(device_id=self.current_device_id, start=False)
         print(f"[MainWindow] 摄像头控制结果: {result}")
 
-        session_result = interface_manager.toggle_analysis(start=False)
+        session_result = unified_data_manager.toggle_analysis(start=False)
         if session_result and "session_id" in session_result:
             print(f"[MainWindow] 结束会话成功: {session_result['session_id']}")
 
@@ -404,7 +377,7 @@ class MainWindow(QMainWindow):
 
     def on_register_face_clicked(self):
         """注册人脸按钮点击"""
-        if interface_manager.is_capture_running:
+        if unified_data_manager.is_capture_running:
             self._msg("warning", "提示",
                       '正在分析中，请先点击"停止分析"后再注册人脸。')
             return
@@ -428,7 +401,7 @@ class MainWindow(QMainWindow):
             f"frames={len(frames)}, storage={storage_type}"
         )
 
-        result = interface_manager.register_face(name, frames, storage_type)
+        result = unified_data_manager.register_face(name, frames, storage_type)
         print(f"[MainWindow] register_face 结果: {result}")
 
     def on_delete_face(self, face_id: str):

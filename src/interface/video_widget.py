@@ -8,7 +8,6 @@ from PyQt5.QtWidgets import (
     QFrame, QVBoxLayout, QLabel, QHBoxLayout, QGraphicsOpacityEffect,
 )
 
-from .interface_manager import interface_manager, VideoFrameData
 from .styles import COLORS, FONTS, SIZES, get_style, get_font, get_spacing
 from .styles.effects import create_card_shadow
 
@@ -236,12 +235,8 @@ class VideoWidget(QFrame):
         self._show_face_boxes = False
         self._current_face_boxes = []
         self.init_ui()
-        self._register_interface_callback()
 
-    def _register_interface_callback(self):
-        interface_manager.register_video_frame_callback(self.on_video_frame_received)
-
-    def on_video_frame_received(self, data: VideoFrameData):
+    def render_frame(self, data):
         if not self.is_running:
             return
         self.current_frame_data = data
@@ -257,7 +252,7 @@ class VideoWidget(QFrame):
             processed_data = self.current_frame_data
         if processed_data is None:
             return
-        if isinstance(processed_data, VideoFrameData):
+        if hasattr(processed_data, 'frame') and hasattr(processed_data, 'faces'):
             self._render_frame_with_faces(processed_data.frame, processed_data.faces)
         else:
             self._render_frame_with_faces(None, [])

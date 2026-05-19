@@ -193,8 +193,8 @@ class MockDataManager:
         }
 
     def _generate_warn_msg(self) -> Optional[Dict[str, str]]:
-        """随机生成告警消息（约 80% 概率）"""
-        if random.random() < 0.80:
+        """随机生成告警消息（约 15% 概率）"""
+        if random.random() < 0.150:
             warn_types = [
                 {"type": "低分告警", "detail": "专注度低于阈值"},
                 {"type": "行为异常", "detail": "检测到走神行为"},
